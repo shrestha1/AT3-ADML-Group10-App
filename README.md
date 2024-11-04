@@ -16,7 +16,7 @@ This project comprises the frontend and backend services of a Air Fare predictio
 
 ## Project Structure:
 ```
-AT2-ADML-24996124-API/
+AT3-ADML-Group10-App/
 ├── app/                     <- Frontend application
 │   ├── config.py            <- Configuration file to configure endpoint (local or remote)
 │   ├── main.py              <- Main application running file
@@ -53,7 +53,7 @@ To run the application locally:
 ``` python
 # inside config.py file of /app
 
-# prod_endpoint_url = 'https://at2-adml-24996124-backend-latest.onrender.com/'
+# prod_endpoint_url = 'https://at3-adml-group10-backend-latest.onrender.com/'
 # fastapi_url = prod_endpoint_url
 
 dev_endpoint_url = 'http://backend:8000/'
@@ -87,7 +87,7 @@ The application is deployed on Render, utilizing separate Docker images for both
 
 
 ### Access Application
-URL: https://at2-adml-24996124-frontend-latest.onrender.com/
+<!-- URL: https://at2-adml-24996124-frontend-latest.onrender.com/ -->
 
 ### Access APIS
- URL: https://at2-adml-24996124-backend-latest.onrender.com/
+ <!-- URL: https://at2-adml-24996124-backend-latest.onrender.com/ -->
