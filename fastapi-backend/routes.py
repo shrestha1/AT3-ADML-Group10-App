@@ -15,15 +15,17 @@ import pickle
 import sklearn
 from datetime import datetime
 import utils
+import vish_utils
+
 import re
 from src.data.lookup import distance_duration_look_up
+from joblib import load
 
 app = FastAPI()
 
 
 def validate_date_format(date_str: str) -> bool:
     return bool(re.match(r'^\d{4}-\d{2}-\d{2}$', date_str))
-
 
 with open('./models/dipesh/shrestha_dipesh_light_GBM.pkl', 'rb') as f:
     prediction_model = pickle.load(f)
@@ -33,9 +35,17 @@ def read_root():
     return {"data": "Hello world"}, 200
 
 
+# Vish function to predict fare:
+def vish_pred_fare(origin_airport: str, destination_airport: str, cabin_type: str, flight_date:str, flight_time:str):
+    df = vish_utils.vish_convert_df(origin_airport, destination_airport, cabin_type, flight_date, flight_time)
+    df = vish_utils.vish_transform(df)
+    df = vish_utils.vish_encode(df)
+    return vish_utils.vish_predict(df)
+
+
+
 # function to predict fare
 def predict_fare(origin_airport: str, destination_airport: str, cabin_type: str, flight_date:str, flight_time:str):
-    
     if not validate_date_format(flight_date):
         raise HTTPException(status_code=400, detail="Date must be in 'yyyy-mm-dd' format")
     
@@ -57,8 +67,12 @@ def predict_fare(origin_airport: str, destination_airport: str, cabin_type: str,
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error predicting sales: {str(e)}")
 
+######## Vishwas Prediction
+    response =  vish_pred_fare(origin_airport, destination_airport, cabin_type, flight_date, flight_time)
+
+
     # Return the prediction
-    return {"prediction": predicted_fare_price}
+    return {"prediction": predicted_fare_price, "vish_pred": response}
     
 
 
@@ -67,3 +81,4 @@ def predict_fare(origin_airport: str, destination_airport: str, cabin_type: str,
 def get_fare_prediction(origin_airport: str, destination_airport: str, cabin_type: str, flight_date:str, flight_time:str):
     
     return predict_fare(origin_airport, destination_airport, cabin_type,flight_date,flight_time)
+
