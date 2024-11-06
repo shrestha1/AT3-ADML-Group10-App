@@ -10,6 +10,9 @@ from datetime import datetime
 
 import pickle
 
+import __main__
+def getImages(d): return##
+__main__.getImages = getImages
 
 #########
 #  file_name: encoder.py

@@ -2,3 +2,5 @@ fastapi[standard]
 pandas==2.2.2
 scikit-learn==1.5.1
 lightgbm
+holidays==0.59
+numpy==2.1.3
