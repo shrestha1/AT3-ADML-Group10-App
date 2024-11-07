@@ -7,9 +7,14 @@ import pandas as pd
 import numpy as np
 from fastapi import HTTPException
 from datetime import datetime
-
+import math
+import joblib
+import os
 import pickle
 
+import __main__
+def getImages(d): return##
+__main__.getImages = getImages
 
 #########
 #  file_name: encoder.py
@@ -153,3 +158,180 @@ def extract_features(origin_airport, destination_airport, cabin_type, flight_dat
     
     df_encoded = loaded_pipeline.transform(df)
     return df_encoded
+
+##################################################################################################################################################################################################
+#Sagar Thapa (24995235)
+
+# this is sourced from http://www.gcmap.com/
+
+airport_coords = {
+    "ATL": (33.6407, -84.4279),
+    "BOS": (42.3656, -71.0096),
+    "CLT": (35.214, -80.9431),
+    "DEN": (39.8617, -104.6738),
+    "DFW": (32.8968, -97.038),
+    "DTW": (42.2124, -83.3534),
+    "EWR": (40.6895, -74.1745),
+    "IAD": (38.9531, -77.4477),
+    "JFK": (40.6413, -73.7781),
+    "LAX": (33.9425, -118.4081),
+    "LGA": (40.7769, -73.8719),
+    "MIA": (25.7959, -80.2870),
+    "OAK": (37.7213, -122.2216),
+    "ORD": (41.9742, -87.9073),
+    "PHL": (39.8719, -75.2411),
+    "SFO": (37.6213, -122.3790),
+}
+
+def haversine(coord1, coord2):
+    R = 6371.0  # Radius of the Earth in kilometers
+    lat1, lon1 = coord1
+    lat2, lon2 = coord2
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    distance = R * c
+    return distance
+
+def airport_distance(airport1, airport2):
+    if airport1 not in airport_coords or airport2 not in airport_coords:
+        raise ValueError("One or both airport codes are invalid.")
+    
+    coord1 = airport_coords[airport1]
+    coord2 = airport_coords[airport2]
+    
+    return haversine(coord1, coord2)
+    
+
+
+def create_input_dataframe(departure_airport, destination_airport, departure_day, departure_time, cabin_code):
+    """
+    Creates a DataFrame for model input based on departure airport, destination airport, 
+    departure date, departure time, and cabin code. Outputs 4 rows for each value of number_of_transits (0, 1, 2, 3).
+    The code checks the final_lookup_df for the matching combination of startingAirport, destinationAirport, 
+    and number_of_transits, and adds the corresponding averageTravelDistance and averageTravelDuration.
+    """
+    
+    # Load lookup files
+    most_frequent_airline_df = pd.read_csv('models/sagar/most_frequent_airline_codes_by_time2.csv')
+    final_lookup_df = pd.read_csv('models/sagar/final_lookup.csv')
+
+    # Ensure departure_day is a datetime object (if not already)
+    departure_day = pd.to_datetime(departure_day) if not isinstance(departure_day, pd.Timestamp) else departure_day
+
+    # Validate departure_time
+    departure_time = int(departure_time.strftime('%H%M'))
+    
+    if not (0 <= departure_time < 2400 and departure_time % 100 < 60):
+        raise ValueError(f"Invalid time format: {departure_time}. Use 'HHMM' format.")
+
+    # Convert departure_time to hours and minutes
+    departure_hour = departure_time // 100
+    departure_minute = departure_time % 100
+
+    # Extract year, month, and day from departure_day
+    flight_month = departure_day.month
+    flight_day_of_week = departure_day.dayofweek
+
+    # Calculate total travel distance (replace this with your actual function)
+    total_travel_distance = airport_distance(departure_airport, destination_airport)
+
+    # Define lists for airline and cabin codes
+    airline_codes = ['9K', '9X', 'AA', 'AS', 'B6', 'DL', 'F9', 'HA', 'KG', 'NK', 'SY', 'UA']
+    cabin_codes = ['coach', 'first', 'premium coach']
+
+    # Prepare the list for storing results
+    input_data_list = []
+
+    # For each value of number_of_transits (0, 1, 2, 3)
+    for number_of_transits in range(4):
+        # Create a new row with common values, changing only number_of_transits
+        input_data = pd.DataFrame({
+            'travelDuration': [0],  
+            'isBasicEconomy': [True],  
+            'totalTravelDistance': [total_travel_distance],  # Total travel distance
+            'number_of_transits': [number_of_transits],  # This will vary (0, 1, 2, 3)
+            'no_of_days_to_flight': [0.0],  #ended up not being used
+            'flight_month': [flight_month],  # Extracted month
+            'flight_day_of_week': [flight_day_of_week],  # Day of the week as int
+            'flight_hour': [departure_hour],  # Extracted hour from time
+        })
+
+        # Add airline and cabin code placeholders (set all to False initially)
+        for code in airline_codes:
+            input_data[f'segmentsAirlineCode_{code}'] = [False]
+        for code in cabin_codes:
+            input_data[f'segmentsCabinCode_{code}'] = [False]
+
+        # **Airline Code Lookup**
+
+        # Find matching airline code based on airport and time
+        matching_airlines = most_frequent_airline_df.loc[(
+            most_frequent_airline_df['startingAirport'] == departure_airport) & 
+            (most_frequent_airline_df['destinationAirport'] == destination_airport) & 
+            (most_frequent_airline_df['flight_hour'] == departure_hour)
+        ]
+        if not matching_airlines.empty:
+            for _, row in matching_airlines.iterrows():
+                airline_code = row['segmentsAirlineCode']
+                input_data[f'segmentsAirlineCode_{airline_code}'] = [True]
+
+        # **Cabin Code Lookup**
+
+        if cabin_code in cabin_codes:
+            input_data[f'segmentsCabinCode_{cabin_code}'] = [True]
+
+        # **Travel Distance, Duration, and Transits Lookup**
+        
+        # Find matching travel details in final_lookup_df using startingAirport, destinationAirport, and number_of_transits
+        matching_lookup = final_lookup_df.loc[(
+            final_lookup_df['startingAirport'] == departure_airport) & 
+            (final_lookup_df['destinationAirport'] == destination_airport) & 
+            (final_lookup_df['number_of_transits'] == number_of_transits)
+        ]
+        
+        if not matching_lookup.empty:
+            # If there's a match, add average travel distance and duration
+            input_data['averageTravelDistance'] = matching_lookup.iloc[0]['averageTravelDistance']
+            input_data['averageTravelDuration'] = matching_lookup.iloc[0]['averageTravelDuration']
+        else:
+            # If no match found, fallback to zeros
+            input_data['averageTravelDistance'] = 0
+            input_data['averageTravelDuration'] = 0
+
+        # Now, update travelDuration and totalTravelDistance with the corresponding average values
+        input_data['travelDuration'] = input_data['averageTravelDuration']
+        input_data['totalTravelDistance'] = input_data['averageTravelDistance']
+
+        # Append the current row to the list
+        input_data_list.append(input_data)
+
+    # Concatenate the list of DataFrames into a single DataFrame
+    input_data_final = pd.concat(input_data_list, ignore_index=True)
+
+    # Ensure the columns are in the correct order
+    input_data_final = input_data_final[['travelDuration', 'isBasicEconomy', 'totalTravelDistance', 
+                                         'number_of_transits', 'flight_month', 
+                                         'flight_day_of_week', 'flight_hour' 
+                                         ] + 
+                                         [f'segmentsAirlineCode_{code}' for code in airline_codes] + 
+                                         [f'segmentsCabinCode_{code}' for code in cabin_codes]]
+
+     # Fill missing values with the most frequent (mode) value for each column
+    for column in input_data_final.columns:
+    # Replace 0s with NaN (since we want to handle zeros and NaNs together)
+        input_data_final[column] = input_data_final[column].replace(0, pd.NA)
+    
+    # Get the most frequent value (mode) for the column
+        most_frequent_value = input_data_final[column].mode().iloc[0] if not input_data_final[column].mode().empty else 0
+    
+    # Fill NaNs with the most frequent value
+        input_data_final[column].fillna(most_frequent_value, inplace=True)
+
+    return input_data_final
+
+
+    ##################################################################################################################################################################################

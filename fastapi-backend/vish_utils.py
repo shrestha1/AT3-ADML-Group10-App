@@ -1,11 +1,12 @@
 
+#visk_ulits.py 
+#Responsible for thhe setting up of the prediction pipeline
+#Shoudl be tested to be effective. 
 import pandas as pd
 import numpy as np
 from fastapi import HTTPException
 from datetime import datetime
 from sklearn.preprocessing import OneHotEncoder
-
-
 from joblib import load
 import math
 
@@ -180,10 +181,10 @@ def vish_predict(df):
     pred = {
         "result": text,
         "raw": {
-            "No Stops": predictions[0],
-            "1 Stop": predictions[1],
-            "2 Stop": predictions[2],
-            "3 Stop": predictions[3],
+            "No Stops": round(predictions[0],2),
+            "1 Stop": round(predictions[1],2),
+            "2 Stop": round(predictions[2],2),
+            "3 Stop": round(predictions[3],2),
         }
     }
     return pred
