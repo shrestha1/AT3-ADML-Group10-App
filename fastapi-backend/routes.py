@@ -17,6 +17,8 @@ from datetime import datetime
 import utils
 import re
 from src.data.lookup import distance_duration_look_up
+import joblib
+from utils import create_input_dataframe
 
 app = FastAPI()
 
@@ -25,8 +27,7 @@ def validate_date_format(date_str: str) -> bool:
     return bool(re.match(r'^\d{4}-\d{2}-\d{2}$', date_str))
 
 
-with open('./models/dipesh/shrestha_dipesh_light_GBM.pkl', 'rb') as f:
-    prediction_model = pickle.load(f)
+model = joblib.load('models/sagar/final_lgbm_model.joblib')
 
 @app.get("/")
 def read_root():
@@ -36,29 +37,17 @@ def read_root():
 # function to predict fare
 def predict_fare(origin_airport: str, destination_airport: str, cabin_type: str, flight_date:str, flight_time:str):
     
-    if not validate_date_format(flight_date):
-        raise HTTPException(status_code=400, detail="Date must be in 'yyyy-mm-dd' format")
-    
-    predicted_fare_price = []
-    
-    for entry in distance_duration_look_up(origin_airport, destination_airport):
+    departure_day = datetime.strptime(flight_date, "%Y-%m-%d")
+    departure_time = datetime.strptime(flight_time, "%H:%M")
 
-        # Prepare the input data for prediction
-        input_data = utils.extract_features(origin_airport, destination_airport, 
-                                            cabin_type,flight_date,flight_time, entry['nStops'], 
-                                            entry["totalTravelDistance"], entry["travelDurationMinutes"])
-        # Predict the fare
-        try:
-            
-            predicted_fare_price.append({"nStops": entry['nStops'], "predicted_fare":round(prediction_model.predict(input_data)[0],2)})
-            # predicted_fare_price = round(prediction_model.predict(input_data)[0],2)
-            # predicted_fare_price = prediction_model.predict(input_data)[0]
-            
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error predicting sales: {str(e)}")
+    input_df = create_input_dataframe(origin_airport, destination_airport, departure_day, departure_time, cabin_type)
+    predictions = model.predict(input_df)
 
-    # Return the prediction
-    return {"prediction": predicted_fare_price}
+    stop_labels = ['0 stops', '1 stop', '2 stops', '3 stops']
+    results = {stop_labels[i]: f"${predictions[i]:,.2f}" for i in range(len(predictions))}
+
+    # Return the results as a dictionary
+    return results
     
 
 
