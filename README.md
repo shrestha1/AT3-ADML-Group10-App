@@ -53,7 +53,7 @@ To run the application locally:
 ``` python
 # inside config.py file of /app
 
-# prod_endpoint_url = 'https://at3-adml-group10-backend-latest.onrender.com/'
+# prod_endpoint_url = 'https://backend-latest-6p8o.onrender.com/'
 # fastapi_url = prod_endpoint_url
 
 dev_endpoint_url = 'http://backend:8000/'
@@ -87,7 +87,7 @@ The application is deployed on Render, utilizing separate Docker images for both
 
 
 ### Access Application
-<!-- URL: https://at2-adml-24996124-frontend-latest.onrender.com/ -->
+https://frontend-o4ps.onrender.com/
 
 ### Access APIS
- <!-- URL: https://at2-adml-24996124-backend-latest.onrender.com/ -->
+ URL: https://backend-latest-6p8o.onrender.com/
